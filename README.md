@@ -14,10 +14,20 @@ Stack: Node ≥ 24 (built-in `node:sqlite`), Hono, jose. Passwords: scrypt (min 
 
 ```sh
 npm install
+npm run install:web && npm run build:web   # the web UI: web/dist (npm start serves it; build it first)
 npm run init-clients        # writes clients.json, prints each app's secret ONCE
 # edit clients.json: set real redirectUris / postLogoutRedirectUris / backchannelLogoutUri / homeUrl per app
 ISSUER=https://id.kore.example PORT=4000 npm start
-npm test && npm run typecheck
+npm test && npm run typecheck              # server
+npm run test:web && npm run typecheck:web  # web UI
+```
+
+Developing the web UI: run the server with the Vite origin as issuer, and Vite next to it (it proxies `/api`,
+`/authorize`, `/logout`, `/token`, `/userinfo` and `/.well-known` to the server on :4000):
+
+```sh
+ISSUER=http://localhost:5173 npm run dev   # server on :4000
+npm run dev:web                            # http://localhost:5173
 ```
 
 | Env | Default | |
@@ -30,6 +40,25 @@ npm test && npm run typecheck
 | `TRUST_PROXY` | `false` | Use `X-Forwarded-For` for rate limiting and the audit log (set behind a reverse proxy) |
 
 Run it behind TLS. Ideally serve it on a sibling subdomain (`id.…`).
+
+## Deploy (Docker)
+
+Images: `ghcr.io/qarasky/kore-id` for linux/amd64 and arm64. `:edge` and `:sha-<short>` follow main; release tags
+`vX.Y.Z` publish `:X.Y.Z`, `:X.Y` and `:latest`. The image runs `node src/server.ts` as the non-root `node` user,
+keeps everything in the `/data` volume (`DATA_DIR=/data`, `CLIENTS_FILE=/data/clients.json`) and has a
+`HEALTHCHECK` on `/healthz`. `compose.yaml` runs it behind your reverse proxy:
+
+```sh
+mkdir -p data
+docker compose run --rm kore-id node scripts/init-clients.ts   # writes data/clients.json, prints secrets ONCE
+# edit data/clients.json for your apps
+echo ISSUER=https://id.kore.example >> .env
+docker compose up -d
+docker compose logs kore-id | grep -A1 'setup link'             # the first admin's one-time setup link
+```
+
+Open the link, set the admin password, then add users under `/admin`. Back up `data/` (DB, signing keys,
+clients). `scripts/smoke.sh` checks an image the way CI does (`KORE_ID_IMAGE=kore-id:local SMOKE_PULL=0`).
 
 ## First start: the admin setup link
 
@@ -122,12 +151,18 @@ denylisted until it expires).
 
 The web UI is a React SPA in `web/` built to `web/dist` and served by this process: `/login`, `/setup/:token`,
 `/account`, `/admin/*` return `web/dist/index.html`; `/assets/*` are served with a 1-year immutable cache.
-`/authorize` and `/logout` stay server routes.
+`/authorize` and `/logout` stay server routes: they decide, the SPA only renders. A user without access to an app
+gets the SPA's "You don't have access to <App>" screen from `/authorize` itself (status 403, never a code), and
+`GET /logout` without a valid hint serves the SPA's confirm screen, whose form posts to `POST /logout` (CSRF and
+the redirect are checked there). Without a built UI both fall back to minimal server HTML.
+
+The UI is built only from [kore-ui](https://github.com/qarasky/kore-ui). Screenshots: `docs/screenshots/`
+(regenerate with `web/scripts/walkthrough.mjs` against a fresh server; see its header).
 
 The SPA talks to `/api/*` (same-origin, `kore_sid` cookie). Every non-GET needs header `X-CSRF-Token` equal to the
 `csrf` value from `GET /api/session`. Errors: `{error, message}`.
 
-`GET /api/session`, `POST /api/login`, `POST /api/logout`, `GET|POST /api/setup/:token`, `GET|PATCH /api/me`,
+`GET /api/session` (`?client_id=` adds `app: {app, name}`), `POST /api/login`, `POST /api/logout`, `GET|POST /api/setup/:token`, `GET|PATCH /api/me`,
 `POST /api/me/password`, `GET /api/me/apps`, `GET /api/me/sessions`, `DELETE /api/me/sessions/:id`,
 `POST /api/me/sessions/revoke-all`, and for admins `GET|POST /api/admin/users`, `GET|PATCH|DELETE
 /api/admin/users/:id`, `POST /api/admin/users/:id/reset`, `POST /api/admin/users/:id/signout`,
