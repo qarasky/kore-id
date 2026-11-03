@@ -1,0 +1,25 @@
+# Kore ID behind your reverse proxy (TLS terminates there).
+#
+#   mkdir -p data
+#   docker compose run --rm kore-id node scripts/init-clients.ts   # writes data/clients.json, prints secrets ONCE
+#   # edit data/clients.json: real redirectUris, postLogoutRedirectUris, backchannelLogoutUri, homeUrl
+#   ISSUER=https://id.example.com docker compose up -d
+#   docker compose logs kore-id | grep -A1 'setup link'               # the first admin's one-time link
+#
+# Settings can also live in a .env file next to this one.
+services:
+  kore-id:
+    image: ghcr.io/qarasky/kore-id:${KORE_ID_VERSION:-latest}
+    build: .
+    restart: unless-stopped
+    # Files in ./data belong to this user (default: the image's `node` user, 1000:1000).
+    user: "${KORE_ID_UID:-1000}:${KORE_ID_GID:-1000}"
+    environment:
+      ISSUER: ${ISSUER:-http://localhost:4000}
+      KORE_ID_ADMIN_EMAIL: ${KORE_ID_ADMIN_EMAIL:-sky@qarasky.dev}
+      # Behind a reverse proxy: use X-Forwarded-For for rate limiting and the audit log.
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+    ports:
+      - "${KORE_ID_BIND:-127.0.0.1}:${KORE_ID_PORT:-4000}:4000"
+    volumes:
+      - ./data:/data
