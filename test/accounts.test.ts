@@ -189,6 +189,9 @@ test('admin: create, list, get, update apps/email, reset password, sign out, del
   assert.ok(list.body.users[0].lastLoginAt);
   const one = await a.api('GET', `/admin/users/${user.id}`);
   assert.equal(one.body.sessions.length, 1);
+  assert.equal(one.body.sessions[0].current, false, "bob's session isn't the admin's device");
+  const self = await a.api('GET', `/admin/users/${(await a.api('GET', '/me')).body.user.id}`);
+  assert.deepEqual(self.body.sessions.map((s: any) => s.current), [true], 'the admin viewing themselves sees "This device"');
 
   // app access is enforced at /authorize
   assert.equal((await bob.req(authz('koremind', pkce().challenge))).status, 403);

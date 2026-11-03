@@ -87,9 +87,15 @@ export function registerApi(app: Hono, d: ApiDeps) {
     db.prepare('SELECT * FROM sessions WHERE user_id = ? AND ended_at IS NULL AND expires_at > ? ORDER BY created_at DESC').all(userId, now()) as unknown as SessionRow[];
 
   // ---------- session / login ----------
+  // ?client_id= also names the app being signed in to (sign-in and "no access" screens). Names aren't secret.
   api.get('/session', (c) => {
     const cur = d.currentSession(c);
-    return c.json({ user: cur ? core.userJson(cur.user) : null, csrf: d.csrfToken(c) });
+    const clientId = c.req.query('client_id');
+    const client = clientId ? config.clients.get(clientId) : undefined;
+    return c.json({
+      user: cur ? core.userJson(cur.user) : null, csrf: d.csrfToken(c),
+      ...(clientId !== undefined && { app: client ? { app: client.app, name: core.appInfo(client.app).name } : null }),
+    });
   });
 
   api.post('/login', async (c) => {
@@ -224,10 +230,10 @@ export function registerApi(app: Hono, d: ApiDeps) {
     return c.json({ user: core.userJson(core.getUser(id)!), setupUrl }, 201);
   }));
 
-  api.get('/admin/users/:id', admin((c) => {
+  api.get('/admin/users/:id', admin((c, { session }) => {
     const u = target(c);
     if (!u) return notFound(c);
-    return c.json({ user: core.userJson(u), sessions: activeSessions(u.id).map((s) => sessionJson(s)) });
+    return c.json({ user: core.userJson(u), sessions: activeSessions(u.id).map((s) => sessionJson(s, session.sid)) });
   }));
 
   api.patch('/admin/users/:id', admin(async (c, { user: actor }) => {

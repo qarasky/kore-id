@@ -212,3 +212,34 @@ test('/register and the old HTML forms are gone; SPA routes need web/dist', asyn
   assert.equal((await w.app.request(ISS + '/assets/..%2Findex.html')).status, 404);
   assert.equal((await w.app.request(ISS + '/assets/nope.js')).status, 404);
 });
+
+test('with the web UI built, no-access and logout-confirm are SPA screens; /api/session names the app', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'kore-web-'));
+  writeFileSync(join(dir, 'index.html'), '<!doctype html><div id="root"></div>');
+  const e = makeEnv({ webDir: dir });
+  const { b } = await e.user('cal@example.com', ['korecalendar']);
+
+  const denied = await b.req(authz('kore', pkce().challenge));
+  assert.equal(denied.status, 403);
+  assert.equal(denied.headers.get('location'), null, 'never a code');
+  assert.match(await denied.text(), /id="root"/);
+
+  const s = await b.api('GET', '/session?client_id=korecalendar-android');
+  assert.deepEqual(s.body.app, { app: 'korecalendar', name: 'Korecalendar' });
+  assert.equal(s.body.user.email, 'cal@example.com');
+  assert.equal((await b.api('GET', '/session?client_id=nope')).body.app, null);
+  assert.equal('app' in (await b.api('GET', '/session')).body, false);
+
+  const confirm = await b.req('/logout?' + new URLSearchParams({ client_id: 'kore', post_logout_redirect_uri: 'http://kore.test/' }));
+  assert.equal(confirm.status, 200);
+  assert.match(await confirm.text(), /id="root"/);
+  // The confirm form's POST /logout redirects to a registered post-logout URI: form-action must allow it.
+  assert.match(confirm.headers.get('content-security-policy')!, /form-action 'self'[^;]* http:\/\/kore\.test/);
+  assert.ok(b.jar.has('kore_sid'), 'GET /logout without a hint ends nothing');
+
+  const out = await b.post('/logout', { csrf: b.csrf! });
+  assert.equal(out.status, 302);
+  assert.equal(out.headers.get('location'), '/login?signed_out=1');
+  const anon = await new e.Browser().req('/logout');
+  assert.equal(anon.headers.get('location'), '/login?signed_out=1');
+});

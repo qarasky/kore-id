@@ -190,11 +190,13 @@ export function createApp(config: Config, db: Db, keys: Keys, opts: AppOptions =
         core.audit({ actor: cur.user, action: 'logout', targetId: cur.user.id, target: cur.user.email, ip: ip(c), userAgent: ua(c), detail: { client: hint.client.id } });
       }
       const target = logoutTarget(hint.client, q.post_logout_redirect_uri, q.state);
-      return target ? c.redirect(target) : c.html(signedOutPage());
+      return target ? c.redirect(target) : signedOut(c);
     }
     const client = config.clients.get(q.client_id ?? '') ?? hint?.client;
     const target = logoutTarget(client, q.post_logout_redirect_uri, q.state);
-    if (!cur) return target ? c.redirect(target) : c.html(signedOutPage());
+    if (!cur) return target ? c.redirect(target) : signedOut(c);
+    // The SPA renders the confirm screen (its form posts back here); plain HTML when the web UI isn't built.
+    if (spaBuilt()) return spa(c);
     return c.html(logoutConfirmPage({
       csrf: csrfToken(c), redirect: target ? q.post_logout_redirect_uri : undefined, clientId: target ? client!.id : undefined, state: q.state,
     }));
@@ -208,7 +210,7 @@ export function createApp(config: Config, db: Db, keys: Keys, opts: AppOptions =
     endCurrentSession(c);
     if (cur) core.audit({ actor: cur.user, action: 'logout', targetId: cur.user.id, target: cur.user.email, ip: ip(c), userAgent: ua(c) });
     const target = logoutTarget(config.clients.get(String(body.client_id ?? '')), body.post_logout_redirect_uri, body.state);
-    return target ? c.redirect(target, 302) : c.html(signedOutPage());
+    return target ? c.redirect(target, 302) : signedOut(c);
   });
 
   // ---------- authorize ----------
@@ -242,6 +244,8 @@ export function createApp(config: Config, db: Db, keys: Keys, opts: AppOptions =
     if (!core.hasAccess(user, client)) {
       core.audit({ actor: user, action: 'app_access_denied', targetId: user.id, target: user.email, ip: ip(c), userAgent: ua(c), detail: { client: client.id, app: client.app } });
       if (prompts.includes('none')) return fail('access_denied', 'This account has no access to this app.');
+      // The SPA renders "You don't have access to <App>" at this URL; plain HTML when the web UI isn't built.
+      if (spaBuilt()) return spa(c, 403);
       return c.html(noAccessPage(core.appInfo(client.app).name, loginUrl(true)), 403);
     }
 
@@ -436,19 +440,26 @@ export function createApp(config: Config, db: Db, keys: Keys, opts: AppOptions =
     '.woff2': 'font/woff2', '.woff': 'font/woff', '.json': 'application/json', '.map': 'application/json',
     '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json',
   };
-  const SPA_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'";
+  // The logout confirm form posts to /logout, which redirects to a registered post_logout_redirect_uri: browsers
+  // apply form-action to that redirect too, so those origins are allowed.
+  const logoutOrigins = [...new Set([...config.clients.values()].flatMap((cl) => cl.postLogoutRedirectUris)
+    .filter((u) => /^https?:\/\//.test(u)).map((u) => new URL(u).origin))];
+  const SPA_CSP = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; form-action ${["'self'", ...logoutOrigins].join(' ')}; base-uri 'none'; frame-ancestors 'none'`;
   const sendFile = (c: Context, file: string, cache: string) => {
     try { if (!statSync(file).isFile()) return c.notFound(); } catch { return c.notFound(); }
     return c.body(readFileSync(file), 200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': cache });
   };
-  const spa = (c: Context) => {
-    if (!existsSync(indexFile)) return c.html(webNotBuiltPage(), 503);
+  function spaBuilt() { return existsSync(indexFile); }
+  function spa(c: Context, status: 200 | 403 = 200) {
+    if (!spaBuilt()) return c.html(webNotBuiltPage(), 503);
     c.header('Content-Security-Policy', SPA_CSP);
     c.header('Cache-Control', 'no-cache');
-    return c.html(readFileSync(indexFile, 'utf8'));
-  };
+    return c.html(readFileSync(indexFile, 'utf8'), status);
+  }
+  /** After a sign-out with nowhere to go back to: the sign-in screen says so. */
+  function signedOut(c: Context) { return spaBuilt() ? c.redirect('/login?signed_out=1') : c.html(signedOutPage()); }
   app.get('/', (c) => c.redirect('/account'));
-  for (const p of ['/login', '/setup/:token', '/account', '/account/*', '/admin', '/admin/*']) app.get(p, spa);
+  for (const p of ['/login', '/setup/:token', '/account', '/account/*', '/admin', '/admin/*']) app.get(p, (c) => spa(c));
   app.get('/assets/*', (c) => {
     let file: string;
     try { file = resolve(assetsDir, decodeURIComponent(c.req.path.slice('/assets/'.length))); } catch { return c.notFound(); }
