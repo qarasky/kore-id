@@ -5,16 +5,19 @@ One account, one login. It is a small OpenID Connect provider: each app is a reg
 standard authorization-code + PKCE flow. Because the login session lives on the auth domain, signing in to one
 app signs you in to all of them.
 
-Stack: Node ≥ 24 (built-in `node:sqlite`), Hono, jose. Passwords: scrypt. Tokens: EdDSA JWTs.
+Accounts are **admin-managed**: there is no sign-up and nothing depends on email. An admin creates a user and hands
+them a one-time setup link. Contract: [`docs/specs/2026-11-03-kore-platform-design.md`](docs/specs/2026-11-03-kore-platform-design.md).
+
+Stack: Node ≥ 24 (built-in `node:sqlite`), Hono, jose. Passwords: scrypt (min 10 chars). Tokens: EdDSA JWTs.
 
 ## Run
 
 ```sh
 npm install
 npm run init-clients        # writes clients.json, prints each app's secret ONCE
-# edit clients.json: set real redirectUris / postLogoutRedirectUris per app
+# edit clients.json: set real redirectUris / postLogoutRedirectUris / backchannelLogoutUri / homeUrl per app
 ISSUER=https://id.kore.example PORT=4000 npm start
-npm test
+npm test && npm run typecheck
 ```
 
 | Env | Default | |
@@ -22,37 +25,125 @@ npm test
 | `ISSUER` | `http://localhost:$PORT` | Public base URL. `https://` turns on `Secure` cookies |
 | `DATA_DIR` | `data` | SQLite DB + `keys.json` (signing keys, 0600). **Back this up** |
 | `CLIENTS_FILE` | `clients.json` | Registered apps |
-| `ALLOW_REGISTRATION` | `true` | Open sign-up on/off |
-| `TRUST_PROXY` | `false` | Use `X-Forwarded-For` for rate limiting (set behind a reverse proxy) |
+| `KORE_ID_ADMIN_EMAIL` | `sky@qarasky.dev` | Bootstrap admin (see below) |
+| `WEB_DIR` | `web/dist` | Built web UI (SPA). Without it, `/login`, `/account`… show "web UI not built" |
+| `TRUST_PROXY` | `false` | Use `X-Forwarded-For` for rate limiting and the audit log (set behind a reverse proxy) |
 
 Run it behind TLS. Ideally serve it on a sibling subdomain (`id.…`).
+
+## First start: the admin setup link
+
+On first start with an empty DB, Kore ID creates the admin `KORE_ID_ADMIN_EMAIL` **without a password** and prints
+a one-time setup link to the log:
+
+```
+Admin sky@qarasky.dev has no password yet. One-time setup link (valid 24h):
+  https://id.kore.example/setup/…
+```
+
+Open it, choose a password, and you're signed in. If the link expired or got lost, just restart: as long as the
+admin still has no password, every start prints a fresh link (the old one stops working). No password lives in
+config. (Upgrading an existing DB: if it has no admin yet, that email is promoted, or created.)
+
+## Users and app access
+
+Everything is done in the web UI under `/admin` (or the JSON API below):
+
+- **Add user**: email, name, role (`admin` | `user`), apps. You get a setup link **once**; copy it to the person.
+  They open it, set a password and are signed in. Emails are trusted (an admin typed them), so tokens carry
+  `email_verified: true`. Only admins change emails.
+- **Reset password**: clears the password, signs the user out everywhere (sessions + refresh tokens, back-channel
+  logout) and returns a new setup link.
+- **Disable**: same sign-out, and the account can't sign in. **Sign out everywhere**: sign-out only.
+- The **last active admin** can't be demoted, disabled or deleted.
+- **App access** is per app key (`kore`, `koremind`, `korecalendar`, `flatline`). Admins can use every app. A user
+  without access who reaches `/authorize` gets a "You don't have access to <App>" page, never a code
+  (`prompt=none` → `error=access_denied`). Several clients can share an app key (`korecalendar` +
+  `korecalendar-android`).
+
+Sign-ins, failed sign-ins and admin actions go to the audit log (`/admin` → Activity).
+
+## clients.json
+
+```jsonc
+{
+  "id": "korecalendar",                 // OIDC client_id
+  "name": "KoreCalendar",
+  "app": "korecalendar",                // access-control key (default: id)
+  "secretHash": "<sha256 hex>",         // omit for public clients (native apps: PKCE only)
+  "redirectUris": ["https://cal.kore.example/auth/callback"],
+  "postLogoutRedirectUris": ["https://cal.kore.example/"],
+  "backchannelLogoutUri": "https://cal.kore.example/auth/backchannel-logout",
+  "homeUrl": "https://cal.kore.example/" // app launcher on /account
+}
+```
+
+Clients are read-only in the admin UI; edit the file (it holds secrets) and restart.
 
 ## Integrating an app
 
 Use any OIDC library pointed at `ISSUER/.well-known/openid-configuration`:
 
-- client id: `kore` | `koremind` | `korecalendar` | `flatline`
+- client id: `kore` | `koremind` | `korecalendar` (`korecalendar-android` for the native app) | `flatline`
 - scope: `openid profile email` (+ `offline_access` for refresh tokens)
-- PKCE `S256` is **mandatory**; confidential clients also send the secret
+- PKCE `S256` is **mandatory**; confidential clients also send the secret (Basic or POST body)
 - user key: the `sub` claim is the same UUID in every app, so key your user rows on it
 
-Backends verifying bearer tokens: see `sdk/verify.ts`. Access tokens are audience-bound to the app, so a
-KoreMind token is rejected by KoreCalendar.
+Tokens:
+- **Access token** (10 min): header `typ: at+jwt`, claims `iss sub aud(=client id) client_id scope iat exp jti sid`
+  (+ `email email_verified` with scope `email`). **Reject any bearer token whose `typ` isn't `at+jwt`.**
+- **ID token**: header `typ: JWT`, claims `iss sub aud azp iat exp auth_time sid nonce? email? email_verified? name?`.
+  No `scope`.
 
-Logout: redirect to `ISSUER/logout?id_token_hint=…&post_logout_redirect_uri=…&state=…`. This ends the SSO
-session. Each app clears its own session. The account page's "Sign out everywhere" also revokes all refresh tokens.
+Backends verifying bearer tokens: `sdk/verify.ts` (`createVerifier`, enforces `typ`, audience, issuer).
+
+**Introspection** (RFC 7662): `POST /introspect` with client auth and `token=…` →
+`{active, sub, client_id, scope, exp, sid, …}`. `active:false` when the token is expired/revoked, the user is
+disabled or lost access to the app, or its session ended. A client can only introspect its own tokens.
+
+**Revocation** (RFC 7009): `POST /revoke` accepts refresh tokens and access tokens (the access token's `jti` is
+denylisted until it expires).
+
+## Logout
+
+- **RP-initiated**: redirect to `ISSUER/logout?id_token_hint=…&post_logout_redirect_uri=…&state=…`. With a valid
+  hint (signature + issuer; expiry ignored up to 24 h) the Kore ID session ends and the browser goes back to the
+  registered `post_logout_redirect_uri`. Without a valid hint, Kore ID shows a "Sign out of Kore ID?" confirm page
+  (pass `client_id` to keep the redirect). No cross-site silent logout.
+- **Back-channel** (OIDC Back-Channel Logout 1.0): whenever a Kore ID session ends (logout, admin disable, sign out
+  everywhere, password reset/change), Kore ID POSTs `logout_token=<JWT>` to the `backchannelLogoutUri` of every
+  client that got tokens in that session. Header `typ: logout+jwt`; claims `iss aud iat exp(+2 min) jti sid sub
+  events`. Fire-and-forget, 2 retries, 5 s timeout each; failures are logged.
+  Apps: store `sid` on the local session, verify the token with `createLogoutVerifier` from `sdk/verify.ts`,
+  delete every local session with that `sid` (or of that `sub` if no `sid`), answer 200 (400 if invalid).
+- Ending a session also revokes the refresh tokens issued in it.
+
+## Web UI and JSON API
+
+The web UI is a React SPA in `web/` built to `web/dist` and served by this process: `/login`, `/setup/:token`,
+`/account`, `/admin/*` return `web/dist/index.html`; `/assets/*` are served with a 1-year immutable cache.
+`/authorize` and `/logout` stay server routes.
+
+The SPA talks to `/api/*` (same-origin, `kore_sid` cookie). Every non-GET needs header `X-CSRF-Token` equal to the
+`csrf` value from `GET /api/session`. Errors: `{error, message}`.
+
+`GET /api/session`, `POST /api/login`, `POST /api/logout`, `GET|POST /api/setup/:token`, `GET|PATCH /api/me`,
+`POST /api/me/password`, `GET /api/me/apps`, `GET /api/me/sessions`, `DELETE /api/me/sessions/:id`,
+`POST /api/me/sessions/revoke-all`, and for admins `GET|POST /api/admin/users`, `GET|PATCH|DELETE
+/api/admin/users/:id`, `POST /api/admin/users/:id/reset`, `POST /api/admin/users/:id/signout`,
+`GET /api/admin/apps`, `GET /api/admin/audit?cursor=&limit=&user=&action=`. Shapes: `src/api.ts`.
 
 ## Endpoints
 
 `/.well-known/openid-configuration`, `/.well-known/jwks.json`, `/authorize`, `/token`, `/userinfo`,
-`/revoke`, `/logout`, `/login`, `/register`, `/account`, `/healthz`.
+`/introspect`, `/revoke`, `/logout`, `/healthz`, `/api/*`, SPA routes.
 
 ## Renaming Flatline → KoreMonitor
 
-Add a `koremonitor` entry to `clients.json` and move the app over; keep `flatline` until it's migrated.
-Users and `sub` are unaffected.
+Add a `koremonitor` entry to `clients.json` (with `"app": "flatline"` to keep everyone's access) and move the app
+over; keep `flatline` until it's migrated. Users and `sub` are unaffected.
 
 ## Not built (yet)
 
-Password reset / email verification (needs a mailer), MFA, change password, admin UI, consent screen
-(all clients are first-party), key-rotation tooling (`keys.json` supports multiple keys: put the new one first).
+Email delivery, MFA, consent screen (all clients are first-party), editing clients from the UI, key-rotation
+tooling (`keys.json` supports multiple keys: put the new one first).
