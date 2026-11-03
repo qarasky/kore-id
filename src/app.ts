@@ -258,7 +258,7 @@ export function createApp(config: Config, db: Db, keys: Keys) {
 
   // ---------- token ----------
   const oauthError = (c: Context, error: string, description: string, status: 400 | 401 = 400) => {
-    if (status === 401) c.header('WWW-Authenticate', 'Basic realm="kore-auth"');
+    if (status === 401) c.header('WWW-Authenticate', 'Basic realm="kore-id"');
     return c.json({ error, error_description: description }, status);
   };
 
