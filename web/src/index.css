@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@import "@qarasky/kore-ui/theme.css";
+/* Tailwind must scan kore-ui's source for class names. Relative to this file. */
+@source "../node_modules/@qarasky/kore-ui/src";
