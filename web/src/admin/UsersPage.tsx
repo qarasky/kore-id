@@ -2,6 +2,7 @@ import {
   Avatar,
   Badge,
   Button,
+  FilterBar,
   InlineMessage,
   Input,
   PageBody,
@@ -17,13 +18,14 @@ import {
   TableRow,
   TableRowHeader,
   TableSkeleton,
+  Time,
   type SortDirection,
 } from "@qarasky/kore-ui";
 import { Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { api } from "../lib/api";
-import { formatTime, fullTime, plural } from "../lib/format";
+import { plural } from "../lib/format";
 import { useSession } from "../lib/session";
 import { Shell } from "../lib/Shell";
 import { errorMessage } from "../lib/strings";
@@ -99,7 +101,7 @@ function Users() {
             </Button>
           }
         />
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <FilterBar label="Filter users" className="mb-3">
           <Input
             size="sm"
             type="search"
@@ -124,7 +126,7 @@ function Users() {
               { value: "admin", label: "Admins" },
             ]}
           />
-        </div>
+        </FilterBar>
         {users.error ? <InlineMessage className="mb-3">{errorMessage(users.error)}</InlineMessage> : null}
         <Table caption="Users" className="min-w-[820px]">
           <TableHeader>
@@ -175,8 +177,8 @@ function Users() {
                   <TableCell>
                     <AppList user={u} names={appNames} />
                   </TableCell>
-                  <TableCell muted className="whitespace-nowrap" title={fullTime(u.lastLoginAt)}>
-                    {formatTime(u.lastLoginAt)}
+                  <TableCell muted className="whitespace-nowrap">
+                    <Time value={u.lastLoginAt} />
                   </TableCell>
                 </TableRow>
               ))

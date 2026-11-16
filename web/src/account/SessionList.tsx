@@ -1,7 +1,7 @@
 // A list of Kore ID sessions (devices). Used by /account and the admin user detail.
-import { Badge, Button, CardList, ListRow } from "@qarasky/kore-ui";
+import { Badge, Button, CardList, ListRow, formatRelativeTime } from "@qarasky/kore-ui";
 import { Monitor, Smartphone } from "lucide-react";
-import { describeDevice, formatTimeInline, fullTime, isMobileUa } from "../lib/format";
+import { describeDevice, isMobileUa } from "../lib/format";
 import type { Session } from "../lib/types";
 
 export function SessionList({
@@ -19,7 +19,7 @@ export function SessionList({
     <CardList aria-label="Sessions">
       {sessions.map((s) => {
         const device = describeDevice(s.userAgent);
-        const meta = [s.ip, s.lastSeenAt ? `Last active ${formatTimeInline(s.lastSeenAt)}` : null]
+        const meta = [s.ip, s.lastSeenAt ? `Last active ${formatRelativeTime(s.lastSeenAt, { inline: true })}` : null]
           .filter(Boolean)
           .join(" · ");
         return (
@@ -36,7 +36,7 @@ export function SessionList({
             }
             description={
               <>
-                <span className="block truncate" title={`Signed in ${fullTime(s.createdAt)}`}>
+                <span className="block truncate" title={s.createdAt ? `Signed in ${new Date(s.createdAt).toLocaleString()}` : undefined}>
                   {meta}
                 </span>
                 <span className="block truncate">

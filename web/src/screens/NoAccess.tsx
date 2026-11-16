@@ -1,16 +1,15 @@
 // Rendered at /authorize when the server answers 403: the signed-in user may not use this app.
-import { AuthScreen, Button } from "@qarasky/kore-ui";
+import { AuthScreen, Button, LoadingState } from "@qarasky/kore-ui";
 import { useSearch } from "wouter";
 import { api } from "../lib/api";
 import { switchAccountUrl } from "../lib/returnTo";
-import { Loading } from "../lib/Shell";
 import { useResource } from "../lib/useResource";
 
 export function NoAccessScreen() {
   const search = useSearch();
   const clientId = new URLSearchParams(search).get("client_id") ?? undefined;
   const s = useResource(() => api.session(clientId), [clientId]);
-  if (s.loading && !s.data) return <Loading />;
+  if (s.loading && !s.data) return <LoadingState className="min-h-dvh" />;
   const app = s.data?.app?.name ?? "this app";
   const email = s.data?.user?.email;
   return (

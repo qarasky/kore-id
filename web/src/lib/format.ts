@@ -1,28 +1,4 @@
-// Times and devices in words. DESIGN.md §5: relative when recent ("Today 07:43", "Yesterday"), dates otherwise.
-const pad = (n: number) => String(n).padStart(2, "0");
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-export function formatTime(iso: string | null | undefined, now = new Date()): string {
-  if (!iso) return "Never";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  const diff = (now.getTime() - d.getTime()) / 1000;
-  if (diff >= 0 && diff < 60) return "Just now";
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const days = Math.round((day(now) - day(d)) / 86400000);
-  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  if (days === 0) return `Today ${hm}`;
-  if (days === 1) return `Yesterday ${hm}`;
-  const md = `${MONTHS[d.getMonth()]} ${d.getDate()}`;
-  return d.getFullYear() === now.getFullYear() ? md : `${md}, ${d.getFullYear()}`;
-}
-
-/** formatTime for the middle of a sentence ("Last active today 07:43"). */
-export const formatTimeInline = (iso: string | null | undefined, now = new Date()) =>
-  formatTime(iso, now).replace(/^(Just now|Today|Yesterday|Never)/, (m) => m.toLowerCase());
-
-/** Full timestamp for a tooltip/title. */
-export const fullTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : "");
+// Devices and counts in words. Times come from kore-ui's <Time> / formatRelativeTime.
 
 /** "Firefox on macOS" from a user agent; good enough for a sessions list. */
 export function describeDevice(ua: string | null | undefined): string {

@@ -11,12 +11,14 @@ import {
   Field,
   InlineMessage,
   Input,
+  LoadingState,
   NavTabs,
   PageBody,
   PageHeader,
   Select,
   SettingsSection,
   Switch,
+  Time,
   useToast,
 } from "@qarasky/kore-ui";
 import { UserX } from "lucide-react";
@@ -24,9 +26,8 @@ import { useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import { SessionList } from "../account/SessionList";
 import { api } from "../lib/api";
-import { formatTimeInline } from "../lib/format";
 import { useSession } from "../lib/session";
-import { Loading, Shell } from "../lib/Shell";
+import { Shell } from "../lib/Shell";
 import { errorCode, errorMessage } from "../lib/strings";
 import type { AdminApp, Role, Session, User } from "../lib/types";
 import { useResource } from "../lib/useResource";
@@ -69,7 +70,7 @@ function UserDetail({ id, tab }: { id: string; tab: UserTab }) {
       </>
     );
   }
-  if (!detail.data) return <Loading />;
+  if (!detail.data) return <LoadingState />;
 
   const { user, sessions } = detail.data;
   const setUser = (u: User) => detail.set({ user: u, sessions: detail.data!.sessions });
@@ -89,7 +90,9 @@ function UserDetail({ id, tab }: { id: string; tab: UserTab }) {
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
               <span className="truncate">{user.email}</span>
               <UserStatus user={user} />
-              <span>Last sign-in {formatTimeInline(user.lastLoginAt)}</span>
+              <span>
+                Last sign-in <Time value={user.lastLoginAt} inline />
+              </span>
             </p>
           </div>
         </div>
@@ -181,7 +184,7 @@ function AppsTab({ user, apps, onSaved }: { user: User; apps: AdminApp[] | undef
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const admin = user.role === "admin";
-  if (!apps) return <Loading />;
+  if (!apps) return <LoadingState />;
 
   async function toggle(app: AdminApp, on: boolean) {
     setBusy(app.app);

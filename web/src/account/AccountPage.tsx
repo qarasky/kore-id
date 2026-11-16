@@ -13,6 +13,7 @@ import {
   SettingsLayout,
   SettingsSection,
   Skeleton,
+  ThemeSwitcher,
   minLengthRule,
   useToast,
 } from "@qarasky/kore-ui";
@@ -40,7 +41,12 @@ export function AccountPage({ section }: { section: AccountSection }) {
     <Shell section="account">
       <PageHeader title="Your account" />
       <SettingsLayout current={section} items={SECTIONS} navLabel="Account sections">
-        {section === "profile" ? <Profile /> : null}
+        {section === "profile" ? (
+          <>
+            <Profile />
+            <Appearance />
+          </>
+        ) : null}
         {section === "security" ? (
           <>
             <Password />
@@ -102,6 +108,14 @@ function Profile() {
           </Button>
         </div>
       </form>
+    </SettingsSection>
+  );
+}
+
+function Appearance() {
+  return (
+    <SettingsSection title="Appearance" description="Saved on this device.">
+      <ThemeSwitcher />
     </SettingsSection>
   );
 }

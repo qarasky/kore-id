@@ -1,11 +1,10 @@
-import { AuthScreen } from "@qarasky/kore-ui";
+import { AuthScreen, LoadingState } from "@qarasky/kore-ui";
 import { useEffect, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { api } from "../lib/api";
 import { clientIdOf, safeReturnTo } from "../lib/returnTo";
 import { errorCode, errorMessage } from "../lib/strings";
 import type { SessionInfo } from "../lib/types";
-import { Loading } from "../lib/Shell";
 
 export function LoginScreen() {
   const search = new URLSearchParams(useSearch());
@@ -43,7 +42,7 @@ export function LoginScreen() {
     };
   }, [clientId, forceLogin, returnTo, navigate]);
 
-  if (!session) return <Loading />;
+  if (!session) return <LoadingState className="min-h-dvh" />;
 
   const appName = session.app?.name;
   const switching = forceLogin && !!session.user;
