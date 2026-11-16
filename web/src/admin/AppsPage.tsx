@@ -2,6 +2,7 @@ import {
   AppMark,
   Badge,
   Card,
+  InlineMessage,
   PageBody,
   PageHeader,
   Skeleton,
@@ -77,7 +78,7 @@ function Apps() {
             the client secrets, so it isn't editable here.
           </p>
         </Card>
-        {apps.error ? <p className="mb-3 text-meta text-danger">{errorMessage(apps.error)}</p> : null}
+        {apps.error ? <InlineMessage className="mb-3">{errorMessage(apps.error)}</InlineMessage> : null}
         {!apps.data && !apps.error ? <Skeleton className="h-40 w-full" /> : null}
         {apps.data?.apps.length === 0 ? <p className="text-muted">No apps are registered yet.</p> : null}
         <div className="flex flex-col gap-8">

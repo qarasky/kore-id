@@ -1,5 +1,5 @@
-import { AuthScreen, Avatar, Button, Field, Input } from "@qarasky/kore-ui";
-import { useState, type FormEvent } from "react";
+import { AuthScreen, Button, minLengthRule } from "@qarasky/kore-ui";
+import { useState } from "react";
 import { useParams } from "wouter";
 import { api } from "../lib/api";
 import { Loading } from "../lib/Shell";
@@ -9,8 +9,7 @@ import { useResource } from "../lib/useResource";
 export function SetupScreen() {
   const { token = "" } = useParams<{ token: string }>();
   const info = useResource(() => api.setupInfo(token), [token]);
-  const [errors, setErrors] = useState<{ password?: string; confirm?: string; form?: string }>({});
-  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
 
   if (info.loading && !info.data) return <Loading />;
@@ -31,52 +30,34 @@ export function SetupScreen() {
 
   const { email, name } = info.data!;
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (pending) return;
-    const data = new FormData(e.currentTarget);
-    const password = String(data.get("password") ?? "");
-    const confirm = String(data.get("confirm") ?? "");
-    const next: typeof errors = {};
-    if (password.length < PASSWORD_MIN) next.password = `Use at least ${PASSWORD_MIN} characters.`;
-    else if (confirm !== password) next.confirm = "The passwords don't match.";
-    setErrors(next);
-    if (next.password || next.confirm) return;
-    setPending(true);
+  async function onSubmit({ password }: { email: string; password: string }) {
+    if (password.length < PASSWORD_MIN) {
+      setError(`Use at least ${PASSWORD_MIN} characters.`);
+      throw new Error("short_password");
+    }
+    setError(null);
     try {
       const { redirect } = await api.setup(token, password);
       window.location.assign(redirect);
     } catch (err) {
-      setPending(false);
-      const code = errorCode(err);
-      if (code === "not_found") setGone(true);
-      else if (code === "invalid_password") setErrors({ password: errorMessage(err) });
-      else setErrors({ form: errorMessage(err) });
+      if (errorCode(err) === "not_found") setGone(true);
+      else setError(errorMessage(err));
+      throw err;
     }
   }
 
   return (
-    <AuthScreen title="Set your password" description="Choose a password for your Kore ID. You'll use it to sign in to every Kore app." error={errors.form}>
-      <div className="flex items-center gap-3 rounded-ui border border-border px-3 py-2.5">
-        <Avatar name={name} email={email} />
-        <div className="min-w-0">
-          <p className="truncate font-medium">{name}</p>
-          <p className="truncate text-meta text-muted">{email}</p>
-        </div>
-      </div>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        {/* Lets password managers save the right account. */}
-        <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
-        <Field label="New password" hint={`At least ${PASSWORD_MIN} characters.`} error={errors.password}>
-          <Input name="password" type="password" autoComplete="new-password" autoFocus />
-        </Field>
-        <Field label="Confirm password" error={errors.confirm}>
-          <Input name="confirm" type="password" autoComplete="new-password" />
-        </Field>
-        <Button type="submit" variant="primary" fullWidth loading={pending}>
-          {pending ? "Setting password…" : "Set password and sign in"}
-        </Button>
-      </form>
-    </AuthScreen>
+    <AuthScreen
+      mode="set-password"
+      description={`Welcome, ${name}. Choose a password for your Kore ID. You'll use it to sign in to every Kore app.`}
+      error={error}
+      password={{
+        onSubmit,
+        defaultEmail: email,
+        emailReadOnly: true,
+        rules: [minLengthRule(PASSWORD_MIN)],
+        labels: { submit: "Set password and sign in", pending: "Setting password…" },
+      }}
+    />
   );
 }

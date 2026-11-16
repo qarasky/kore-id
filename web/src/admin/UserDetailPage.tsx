@@ -9,6 +9,7 @@ import {
   DialogFooter,
   EmptyState,
   Field,
+  InlineMessage,
   Input,
   NavTabs,
   PageBody,
@@ -165,9 +166,7 @@ function ProfileTab({ user, onSaved }: { user: User; onSaved: (u: User) => void 
         />
       </Field>
       {errors.form ? (
-        <p role="alert" className="text-meta text-danger">
-          {errors.form}
-        </p>
+        <InlineMessage>{errors.form}</InlineMessage>
       ) : null}
       <div>
         <Button type="submit" variant="primary" loading={saving}>
@@ -270,9 +269,7 @@ function SecurityTab({
   }
 
   const errorText = error ? (
-    <p role="alert" className="text-meta text-danger">
-      {error}
-    </p>
+    <InlineMessage>{error}</InlineMessage>
   ) : null;
 
   return (

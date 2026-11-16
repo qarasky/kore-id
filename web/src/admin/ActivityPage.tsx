@@ -1,9 +1,9 @@
 import {
   Button,
+  InlineMessage,
   PageBody,
   PageHeader,
   Select,
-  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
   TableRowHeader,
+  TableSkeleton,
 } from "@qarasky/kore-ui";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
@@ -178,7 +179,7 @@ function Activity() {
             </Button>
           ) : null}
         </div>
-        {error ? <p className="mb-3 text-meta text-danger">{errorMessage(error)}</p> : null}
+        {error ? <InlineMessage className="mb-3">{errorMessage(error)}</InlineMessage> : null}
         <Table caption="Audit log" className="min-w-[760px]">
           <TableHeader>
             <tr>
@@ -191,13 +192,7 @@ function Activity() {
           </TableHeader>
           <TableBody>
             {entries === null ? (
-              [0, 1, 2, 3].map((i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={5}>
-                    <Skeleton className="h-5 w-2/3" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <TableSkeleton columns={["w-24", "w-32", "w-24", "w-32", "w-40"]} />
             ) : entries.length === 0 ? (
               <TableEmpty colSpan={5}>{user !== "all" || action !== "all" ? "Nothing matches these filters." : "No activity yet."}</TableEmpty>
             ) : (

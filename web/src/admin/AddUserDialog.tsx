@@ -1,4 +1,4 @@
-import { Button, Checkbox, Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, Field, Input, Select } from "@qarasky/kore-ui";
+import { Button, Checkbox, Dialog, DialogBody, DialogClose, DialogContent, DialogFooter, Field, InlineMessage, Input, Select } from "@qarasky/kore-ui";
 import { useState, type FormEvent } from "react";
 import { api } from "../lib/api";
 import { errorCode, errorMessage } from "../lib/strings";
@@ -124,15 +124,11 @@ export function AddUserDialog({
                 ))}
                 {apps.length === 0 ? <p className="text-meta text-muted">No apps are registered yet.</p> : null}
                 {errors.apps ? (
-                  <p id="add-user-apps-error" role="alert" className="text-meta text-danger">
-                    {errors.apps}
-                  </p>
+                  <InlineMessage id="add-user-apps-error">{errors.apps}</InlineMessage>
                 ) : null}
               </fieldset>
               {errors.form ? (
-                <p role="alert" className="text-meta text-danger">
-                  {errors.form}
-                </p>
+                <InlineMessage>{errors.form}</InlineMessage>
               ) : null}
             </DialogBody>
             <DialogFooter>

@@ -1,6 +1,5 @@
 // Small admin pieces composed from kore-ui parts.
-import { AppMark, Badge, Card, CopyButton, Input, StatusDot } from "@qarasky/kore-ui";
-import type { ReactNode } from "react";
+import { AppMark, Badge, CopyButton, Input, StatusDot } from "@qarasky/kore-ui";
 import { isAppId } from "../lib/apps";
 import type { User } from "../lib/types";
 
@@ -46,16 +45,5 @@ export function SetupLink({ url, name }: { url: string; name: string }) {
       </div>
       <p className="text-meta text-muted">Send this link to {name}. It works once and expires in 24 hours.</p>
     </div>
-  );
-}
-
-/** A number with a label (kore-ui has no stat tile; a Card holds it). */
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
-  return (
-    <Card className="px-4 py-3">
-      <p className="text-meta text-muted">{label}</p>
-      <p className="mt-1 text-display font-semibold tabular-nums tracking-[-0.01em]">{value}</p>
-      {hint ? <p className="text-meta text-muted">{hint}</p> : null}
-    </Card>
   );
 }

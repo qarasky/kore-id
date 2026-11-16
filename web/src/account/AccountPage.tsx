@@ -6,11 +6,14 @@ import {
   ConfirmDialog,
   EmptyState,
   Field,
+  InlineMessage,
   Input,
   PageHeader,
+  PasswordInput,
   SettingsLayout,
   SettingsSection,
   Skeleton,
+  minLengthRule,
   useToast,
 } from "@qarasky/kore-ui";
 import { AppWindow, KeyRound, UserRound } from "lucide-react";
@@ -105,26 +108,23 @@ function Profile() {
 
 function Password() {
   const toast = useToast();
-  const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [errors, setErrors] = useState<{ current?: string; next?: string }>({});
   const [saving, setSaving] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const d = new FormData(form);
-    const current = String(d.get("current") ?? "");
-    const next = String(d.get("next") ?? "");
-    const confirm = String(d.get("confirm") ?? "");
     const errs: typeof errors = {};
     if (!current) errs.current = "Enter your current password.";
     if (next.length < PASSWORD_MIN) errs.next = `Use at least ${PASSWORD_MIN} characters.`;
-    else if (confirm !== next) errs.confirm = "The passwords don't match.";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setSaving(true);
     try {
       await api.changePassword(current, next);
-      form.reset();
+      setCurrent("");
+      setNext("");
       toast.show({ message: "Password changed. Your other devices were signed out.", tone: "success" });
       window.dispatchEvent(new Event("kore:sessions-changed"));
     } catch (err) {
@@ -137,16 +137,19 @@ function Password() {
   }
 
   return (
-    <SettingsSection title="Password" description={`At least ${PASSWORD_MIN} characters. Changing it signs out your other devices.`}>
+    <SettingsSection title="Password" description="Changing it signs out your other devices.">
       <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
         <Field label="Current password" error={errors.current}>
-          <Input name="current" type="password" autoComplete="current-password" />
+          <PasswordInput name="current" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </Field>
         <Field label="New password" error={errors.next}>
-          <Input name="next" type="password" autoComplete="new-password" />
-        </Field>
-        <Field label="Confirm new password" error={errors.confirm}>
-          <Input name="confirm" type="password" autoComplete="new-password" />
+          <PasswordInput
+            name="next"
+            newPassword
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            rules={[minLengthRule(PASSWORD_MIN)]}
+          />
         </Field>
         <div>
           <Button type="submit" variant="primary" loading={saving}>
@@ -188,7 +191,7 @@ function Sessions() {
           }}
         />
       ) : sessions.error ? (
-        <p className="text-meta text-danger">{errorMessage(sessions.error)}</p>
+        <InlineMessage>{errorMessage(sessions.error)}</InlineMessage>
       ) : (
         <Skeleton className="h-row w-full" />
       )}

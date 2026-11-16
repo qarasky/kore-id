@@ -2,17 +2,18 @@ import {
   AppMark,
   Button,
   Card,
+  InlineMessage,
   PageBody,
   PageHeader,
   SectionHeader,
   Skeleton,
+  Stat,
   Table,
   TableBody,
   TableEmpty,
   TableHead,
   TableHeader,
-  TableRow,
-  TableRowHeader,
+  TableSkeleton,
 } from "@qarasky/kore-ui";
 import { Link } from "wouter";
 import { api } from "../lib/api";
@@ -22,7 +23,6 @@ import { Shell } from "../lib/Shell";
 import { errorMessage } from "../lib/strings";
 import { useResource } from "../lib/useResource";
 import { ActivityRows } from "./ActivityPage";
-import { Stat } from "./parts";
 
 export function OverviewPage() {
   return (
@@ -37,18 +37,24 @@ function Overview() {
   const apps = useResource(() => api.apps(), []);
   const audit = useResource(() => api.audit({ limit: 8 }), []);
   const list = users.data?.users ?? [];
-  const count = (f: (u: (typeof list)[number]) => boolean) => (users.data ? list.filter(f).length : "–");
+  const count = (f: (u: (typeof list)[number]) => boolean) => list.filter(f).length;
+  const loading = !users.data;
 
   return (
     <>
       <PageHeader title="Overview" breadcrumbs={[{ label: "Admin" }]} />
       <PageBody>
-        {users.error ? <p className="mb-3 text-meta text-danger">{errorMessage(users.error)}</p> : null}
+        {users.error ? <InlineMessage className="mb-3">{errorMessage(users.error)}</InlineMessage> : null}
         <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Users" value={users.data ? list.length : "–"} />
-          <Stat label="Active" value={count((u) => !u.disabled && u.hasPassword)} hint={users.data ? `${count((u) => !u.disabled && !u.hasPassword)} setup pending` : undefined} />
-          <Stat label="Disabled" value={count((u) => u.disabled)} />
-          <Stat label="Admins" value={count((u) => u.role === "admin")} />
+          <Stat label="Users" value={list.length} loading={loading} />
+          <Stat
+            label="Active"
+            value={count((u) => !u.disabled && u.hasPassword)}
+            hint={loading ? undefined : `${count((u) => !u.disabled && !u.hasPassword)} setup pending`}
+            loading={loading}
+          />
+          <Stat label="Disabled" value={count((u) => u.disabled)} loading={loading} />
+          <Stat label="Admins" value={count((u) => u.role === "admin")} loading={loading} />
         </div>
 
         <SectionHeader
@@ -104,15 +110,11 @@ function Overview() {
                 <TableEmpty colSpan={5}>No activity yet.</TableEmpty>
               )
             ) : (
-              <TableRow>
-                <TableRowHeader colSpan={5}>
-                  <Skeleton className="h-5 w-1/3" />
-                </TableRowHeader>
-              </TableRow>
+              <TableSkeleton columns={["w-24", "w-32", "w-24", "w-32", "w-40"]} rows={3} />
             )}
           </TableBody>
         </Table>
-        {audit.error ? <p className="mt-3 text-meta text-danger">{errorMessage(audit.error)}</p> : null}
+        {audit.error ? <InlineMessage className="mt-3">{errorMessage(audit.error)}</InlineMessage> : null}
       </PageBody>
     </>
   );
