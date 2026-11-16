@@ -5,11 +5,11 @@ import {
   AppShell,
   AppSwitcher,
   EmptyState,
+  LoadingState,
   MenuItem,
   Sidebar,
   SidebarItem,
   SidebarNav,
-  Spinner,
   TopBar,
   Wordmark,
 } from "@qarasky/kore-ui";
@@ -52,15 +52,6 @@ function KoreIdSidebar({ current, admin }: { current: Section; admin: boolean })
   );
 }
 
-/** Centred spinner for first loads. */
-export function Loading({ label = "Loading…" }: { label?: string }) {
-  return (
-    <div className="grid min-h-[200px] flex-1 place-items-center text-muted">
-      <Spinner size={20} label={label} />
-    </div>
-  );
-}
-
 /** Requires a signed-in user (else → /login). `admin` additionally requires the admin role (else a 403 view). */
 export function Shell({ section, admin = false, children }: { section: Section; admin?: boolean; children: ReactNode }) {
   const { user, signOut } = useSession();
@@ -71,7 +62,7 @@ export function Shell({ section, admin = false, children }: { section: Section; 
     if (user === null) window.location.assign("/login");
   }, [user]);
 
-  if (!user) return <Loading />;
+  if (!user) return <LoadingState className="min-h-dvh" />;
   const isAdmin = user.role === "admin";
   const { urls, names } = appProps(myApps.data?.apps ?? []);
 

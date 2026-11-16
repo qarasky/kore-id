@@ -3,7 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#16181d" />
+    <!-- Sets data-theme before first paint. Must equal themeInitScript() from kore-ui (src/theme.test.ts checks it). -->
+    <script>(function(){try{var p=localStorage.getItem("kore-theme")||"color";var t=p;if(p==="system"){t=matchMedia("(prefers-color-scheme: light)").matches?"light":"color"}if(t!=="light"&&t!=="dark"&&t!=="color")t="color";document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","color")}})()</script>
     <meta name="referrer" content="no-referrer" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Kore ID</title>

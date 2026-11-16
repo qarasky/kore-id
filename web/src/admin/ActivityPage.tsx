@@ -1,5 +1,6 @@
 import {
   Button,
+  FilterBar,
   InlineMessage,
   PageBody,
   PageHeader,
@@ -13,11 +14,12 @@ import {
   TableRow,
   TableRowHeader,
   TableSkeleton,
+  Time,
 } from "@qarasky/kore-ui";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { api } from "../lib/api";
-import { describeDevice, formatTime, fullTime } from "../lib/format";
+import { describeDevice } from "../lib/format";
 import { Shell } from "../lib/Shell";
 import { ACTIONS, actionLabel, errorMessage } from "../lib/strings";
 import type { AuditEntry } from "../lib/types";
@@ -57,8 +59,8 @@ export function ActivityRows({ entries }: { entries: AuditEntry[] }) {
         const detail = detailText(e);
         return (
           <TableRow key={e.id}>
-            <TableCell muted className="whitespace-nowrap" title={fullTime(e.time)}>
-              {formatTime(e.time)}
+            <TableCell muted className="whitespace-nowrap">
+              <Time value={e.time} />
             </TableCell>
             <TableRowHeader className="max-w-[220px] truncate">
               {e.actor ? (
@@ -146,7 +148,7 @@ function Activity() {
     <>
       <PageHeader title="Activity" breadcrumbs={[{ label: "Admin", href: "/admin" }]} />
       <PageBody>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        <FilterBar label="Filter activity" className="mb-3">
           <Select
             size="sm"
             aria-label="User"
@@ -178,7 +180,7 @@ function Activity() {
               Clear filters
             </Button>
           ) : null}
-        </div>
+        </FilterBar>
         {error ? <InlineMessage className="mb-3">{errorMessage(error)}</InlineMessage> : null}
         <Table caption="Audit log" className="min-w-[760px]">
           <TableHeader>

@@ -1,7 +1,8 @@
 import {
-  AppMark,
+  AppTile,
   Badge,
   Card,
+  DescriptionList,
   InlineMessage,
   PageBody,
   PageHeader,
@@ -16,7 +17,6 @@ import {
 } from "@qarasky/kore-ui";
 import { Info } from "lucide-react";
 import { api } from "../lib/api";
-import { isAppId } from "../lib/apps";
 import { plural } from "../lib/format";
 import { Shell } from "../lib/Shell";
 import { errorMessage } from "../lib/strings";
@@ -32,24 +32,11 @@ function Endpoints({ c }: { c: AdminClient }) {
     ["After sign-out", c.postLogoutRedirectUris],
   ];
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-      {rows.map(([label, list]) => (
-        <div key={label} className="contents">
-          <dt className="text-meta whitespace-nowrap text-muted">{label}</dt>
-          <dd className="min-w-0">
-            {list.length ? (
-              list.map((u) => (
-                <span key={u} className="block font-mono text-meta [overflow-wrap:anywhere]">
-                  {u}
-                </span>
-              ))
-            ) : (
-              <span className="text-meta text-muted">Not set</span>
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <DescriptionList
+      items={rows.map(([label, list]) =>
+        list.length ? { label, value: list, mono: true } : { label, value: <span className="text-muted">Not set</span> },
+      )}
+    />
   );
 }
 
@@ -85,9 +72,7 @@ function Apps() {
           {apps.data?.apps.map((a) => (
             <section key={a.app} aria-labelledby={`app-${a.app}`}>
               <div className="mb-3 flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-ui border border-border bg-bg/60">
-                  {isAppId(a.app) ? <AppMark app={a.app} size={20} /> : <span className="text-meta text-muted">{a.app.slice(0, 2)}</span>}
-                </span>
+                <AppTile app={a.app} name={a.name} />
                 <div className="min-w-0">
                   <h2 id={`app-${a.app}`} className="text-title font-semibold tracking-[-0.01em]">
                     {a.name}

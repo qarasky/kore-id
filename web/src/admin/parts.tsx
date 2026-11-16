@@ -1,5 +1,5 @@
 // Small admin pieces composed from kore-ui parts.
-import { AppMark, Badge, CopyButton, Input, StatusDot } from "@qarasky/kore-ui";
+import { AppMark, Badge, CopyField, StatusDot } from "@qarasky/kore-ui";
 import { isAppId } from "../lib/apps";
 import type { User } from "../lib/types";
 
@@ -35,14 +35,11 @@ export function AppList({ user, names }: { user: User; names: Record<string, str
   );
 }
 
-/** A setup link shown once: read-only input + CopyButton, and what to do with it. */
+/** A setup link shown once: a CopyField, and what to do with it. */
 export function SetupLink({ url, name }: { url: string; name: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Input readOnly value={url} aria-label="Setup link" className="font-mono text-meta" onFocus={(e) => e.currentTarget.select()} />
-        <CopyButton value={url} />
-      </div>
+      <CopyField value={url} mono aria-label="Setup link" />
       <p className="text-meta text-muted">Send this link to {name}. It works once and expires in 24 hours.</p>
     </div>
   );

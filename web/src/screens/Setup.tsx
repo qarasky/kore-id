@@ -1,8 +1,7 @@
-import { AuthScreen, Button, minLengthRule } from "@qarasky/kore-ui";
+import { AuthScreen, Button, LoadingState, minLengthRule } from "@qarasky/kore-ui";
 import { useState } from "react";
 import { useParams } from "wouter";
 import { api } from "../lib/api";
-import { Loading } from "../lib/Shell";
 import { PASSWORD_MIN, SETUP_GONE, errorCode, errorMessage } from "../lib/strings";
 import { useResource } from "../lib/useResource";
 
@@ -12,7 +11,7 @@ export function SetupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [gone, setGone] = useState(false);
 
-  if (info.loading && !info.data) return <Loading />;
+  if (info.loading && !info.data) return <LoadingState className="min-h-dvh" />;
 
   if (gone || info.error) {
     const code = errorCode(info.error);

@@ -1,15 +1,14 @@
 // Rendered at GET /logout when an app asked to sign out without a valid id_token_hint. The form posts to the
 // server's POST /logout (CSRF checked there, post_logout_redirect_uri validated there).
-import { AuthScreen, Button } from "@qarasky/kore-ui";
+import { AuthScreen, Button, LoadingState } from "@qarasky/kore-ui";
 import { useSearch } from "wouter";
 import { api } from "../lib/api";
-import { Loading } from "../lib/Shell";
 import { useResource } from "../lib/useResource";
 
 export function LogoutConfirmScreen() {
   const q = new URLSearchParams(useSearch());
   const s = useResource(() => api.session(q.get("client_id") ?? undefined), []);
-  if (!s.data) return <Loading />;
+  if (!s.data) return <LoadingState className="min-h-dvh" />;
   const hidden = (["post_logout_redirect_uri", "client_id", "state"] as const)
     .map((k) => [k, q.get(k)] as const)
     .filter(([, v]) => v);

@@ -1,5 +1,5 @@
 import {
-  AppMark,
+  AppTile,
   Button,
   Card,
   InlineMessage,
@@ -17,7 +17,6 @@ import {
 } from "@qarasky/kore-ui";
 import { Link } from "wouter";
 import { api } from "../lib/api";
-import { isAppId } from "../lib/apps";
 import { plural } from "../lib/format";
 import { Shell } from "../lib/Shell";
 import { errorMessage } from "../lib/strings";
@@ -70,9 +69,7 @@ function Overview() {
           {apps.data
             ? apps.data.apps.map((a) => (
                 <Card key={a.app} className="flex items-center gap-3 px-4 py-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-ui border border-border bg-bg/60">
-                    {isAppId(a.app) ? <AppMark app={a.app} size={20} /> : <span className="text-meta text-muted">{a.app.slice(0, 2)}</span>}
-                  </span>
+                  <AppTile app={a.app} name={a.name} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{a.name}</span>
                     <span className="block text-meta text-muted">{plural(a.userCount, "user")}</span>
