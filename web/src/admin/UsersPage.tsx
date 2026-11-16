@@ -2,12 +2,12 @@ import {
   Avatar,
   Badge,
   Button,
+  InlineMessage,
   Input,
   PageBody,
   PageHeader,
   SectionHeader,
   Select,
-  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
   TableRowHeader,
+  TableSkeleton,
   type SortDirection,
 } from "@qarasky/kore-ui";
 import { Plus, Search } from "lucide-react";
@@ -124,7 +125,7 @@ function Users() {
             ]}
           />
         </div>
-        {users.error ? <p className="mb-3 text-meta text-danger">{errorMessage(users.error)}</p> : null}
+        {users.error ? <InlineMessage className="mb-3">{errorMessage(users.error)}</InlineMessage> : null}
         <Table caption="Users" className="min-w-[820px]">
           <TableHeader>
             <tr>
@@ -141,13 +142,7 @@ function Users() {
           </TableHeader>
           <TableBody>
             {!users.data ? (
-              [0, 1, 2].map((i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={5}>
-                    <Skeleton className="h-5 w-1/2" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <TableSkeleton columns={["w-48", "w-16", "w-24", "w-20", "w-24"]} rows={3} />
             ) : rows.length === 0 ? (
               <TableEmpty colSpan={5}>{q ? `No users match “${q}”.` : "No users to show."}</TableEmpty>
             ) : (
